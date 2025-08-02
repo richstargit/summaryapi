@@ -21,7 +21,7 @@ const GEMINI_URL = process.env.GEMINI_URL
 app.use(cors());
 
 // GET: /api/questions?id=xxx
-app.get('/api/questions', async (req, res) => {
+app.get('/api/question', async (req, res) => {
   const id = req.query.id
 
   if (typeof id !== 'string' || !ObjectId.isValid(id)) {
@@ -45,7 +45,7 @@ app.get('/api/questions', async (req, res) => {
 })
 
 // POST: /api/questions (multipart/form-data with PDF)
-app.post('/api/questions', (req, res) => {
+app.post('/api/question', (req, res) => {
   const form = new multiparty.Form()
 
   form.parse(req, async (err, fields, files) => {
@@ -71,7 +71,9 @@ app.post('/api/questions', (req, res) => {
 เป็นข้อมูล json มีเลขข้อ คำถาม choice 5 ข้อ และเฉลย เป็นเลขลำดับใน choice list เท่านั้น 0-4
 ต้องทำทั้งหมด 15 ข้อ ออกมาเป็น list ของตัวแปรชื่อ data : []
 อยากให้ มี ข้อที่ต้องวิเคราะห์ 2 ข้อ
+มีตัวแปรชื่อ title เอาไว้เก็บหัวข้อเรื่องความยาวไม่เกิน 50 ตัวอักษร
 ตัวอย่าง 1 ชุด รูปแบบ json เท่านั้น
+title : "ชีวะ"
 data : [ 
   {
     number: 1,
@@ -104,7 +106,7 @@ ${fullText}
       await client.connect()
       const db = client.db(dbName)
       const collection = db.collection('questions')
-      const result = await collection.insertOne({ data: parsed.data })
+      const result = await collection.insertOne({ title:parsed.title, data: parsed.data })
 
       return res.status(200).json({ insertedId: result.insertedId })
     } catch (e) {
@@ -112,6 +114,31 @@ ${fullText}
       return res.status(500).json({ error: 'Internal Server Error' })
     }
   })
+})
+
+app.get('/api/questions', async (req, res) => {
+
+  try {
+    await client.connect()
+    const db = client.db(dbName)
+    const item = await db.collection('questions').find({}).toArray()
+
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' })
+    }
+    
+    const result = item.map((item)=>{
+      return {
+        title : item.title,
+        id : item._id
+      }
+    })
+
+    return res.status(200).json(result)
+  } catch (error) {
+    console.error('GET /api/questions error:', error)
+    return res.status(500).json({ error: 'Internal Server Error' })
+  }
 })
 
 // Start server
